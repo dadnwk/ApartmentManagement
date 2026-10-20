@@ -11,6 +11,6 @@ Tables are created automatically on startup. `PORT` and `DATABASE_URL` are read 
 
 ## Login
 
-The app requires login. Default credentials: user `admin`, password `4108`.
+The app requires login. Default credentials: user `admin`, password `****`.
 Override with the `ADMIN_USER` and `ADMIN_PASSWORD` environment variables. Sessions last 8 hours and are kept in
 server memory, so restarting the server logs everyone out.
