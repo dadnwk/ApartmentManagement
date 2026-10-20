@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n-title="app.title">Apartment Management</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1 data-i18n="app.title">Apartment Management</h1>
+  <nav id="nav">
+    <a href="#/bills" data-i18n="nav.bills">Bills</a>
+    <a href="#/calendar" data-i18n="nav.calendar">Calendar</a>
+    <a href="#/rooms" data-i18n="nav.rooms">Rooms</a>
+    <a href="#/persons" data-i18n="nav.persons">Persons</a>
+    <a href="#/settings" data-i18n="nav.settings">Settings</a>
+  </nav>
+  <select id="lang" aria-label="Language"></select>
+  <button id="logout" class="secondary small" data-i18n="logout">Log out</button>
+</header>
+<main id="app"></main>
+
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <h3 id="dlgTitle"></h3>
+    <div id="dlgFields"></div>
+    <div class="actions">
+      <button type="button" id="dlgCancel" class="secondary" data-i18n="cancel">Cancel</button>
+      <button type="submit" data-i18n="save">Save</button>
+    </div>
+  </form>
+</dialog>
+<script type="module" src="app.js"></script>
+</body>
+</html>

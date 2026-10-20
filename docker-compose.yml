@@ -1,0 +1,13 @@
+services:
+  db:
+    image: docker-repos.dockerregistry.mgm-tp.com/postgres:16
+    environment:
+      POSTGRES_USER: apartment
+      POSTGRES_PASSWORD: apartment
+      POSTGRES_DB: apartment
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
