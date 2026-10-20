@@ -1,0 +1,77 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apartment
+          POSTGRES_PASSWORD: apartment
+          POSTGRES_DB: apartment
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U apartment"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://apartment:apartment@localhost:5432/apartment
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Smoke test
+        run: |
+          node dist/index.js &
+          for i in $(seq 1 20); do curl -fs localhost:3000/login.html >/dev/null && break; sleep 1; done
+          curl -fs localhost:3000/login.html >/dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/api/state)" = 401
+          curl -fs -c jar -X POST localhost:3000/api/login -H 'content-type: application/json' \
+            -d '{"username":"admin","password":"4108"}'
+          curl -fs -b jar -X POST localhost:3000/api/persons -H 'content-type: application/json; charset=utf-8' \
+            -d '{"fullName":"Nguyễn Thị Ánh"}'
+          curl -fs -b jar localhost:3000/api/state | grep -q 'Nguyễn Thị Ánh'
+
+  publish:
+    # Only on pushes to main (and manual runs from main); pull requests just build and test.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

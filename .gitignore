@@ -1,3 +1,5 @@
 node_modules
 dist
-public/app.js
+public/*.js
+srv.log
+.env
