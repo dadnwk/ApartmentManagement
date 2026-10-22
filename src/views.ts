@@ -1,88 +1,109 @@
-import { formatLocale, t } from './i18n.js';
-import { bill, esc, money, occupants, roomLabel, type Field, type State } from './model.js';
+import { formatLocale, t, type Key } from './i18n.js';
+import { bill, esc, money, occupants, roomLabel, type Field, type Me, type Room, type State, type User } from './model.js';
 
-export const formFieldsView = (fields: Field[], values: Partial<Record<string, string>>) => fields.map(f => `
-    <label>${esc(f.label)}
-      <input name="${f.name}" type="${f.type || 'text'}" ${f.step ? `step="${f.step}"` : ''} ${f.type === 'number' ? 'min="0"' : ''}
-        value="${esc(values[f.name] ?? '')}" ${f.required === false ? '' : 'required'}>
-    </label>`).join('');
+export const formFieldsView = (fields: Field[], values: Partial<Record<string, string>>) => fields.map(f => {
+  const value = values[f.name] ?? '';
+  const cond = f.showWhen
+    ? ` data-show-field="${f.showWhen.field}" data-show-equals="${esc(f.showWhen.equals)}" ${f.required === false ? '' : 'data-req="1"'}`
+    : '';
+  if (f.options) {
+    return `
+    <label${cond}>${esc(f.label)}
+      <select name="${f.name}">${f.options.map(o =>
+        `<option value="${esc(o.value)}" ${o.value === value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>
+    </label>`;
+  }
+  return `
+    <label${cond}>${esc(f.label)}
+      <input name="${f.name}" type="${f.type || 'text'}" ${f.type === 'password' ? 'autocomplete="new-password"' : ''} ${f.step ? `step="${f.step}"` : ''} ${f.type === 'number' ? 'min="0"' : ''}
+        value="${esc(value)}" ${f.required === false ? '' : 'required'}>
+    </label>`;
+}).join('');
 
 export const totalCellView = (total: number) => `<strong>${money(total)}</strong>`;
 
-export const settingsView = (db: State) => {
-  const s = db.settings;
-  const roomRows = db.rooms.map(r => `
-    <tr><td>${esc(r.number)}</td><td>${esc(r.name)}</td><td class="num">${money(r.price)}</td>
-    <td class="actions-cell">
-      <button class="small secondary" data-act="edit-room" data-id="${r.id}">${t('edit')}</button>
-      <button class="small danger" data-act="del-room" data-id="${r.id}">${t('delete')}</button></td></tr>`).join('');
-  const personRows = db.persons.map(p => `
-    <tr><td>${esc(p.fullName)}</td><td>${esc(p.birthday)}</td>
-    <td class="actions-cell">
-      <button class="small secondary" data-act="edit-person" data-id="${p.id}">${t('edit')}</button>
-      <button class="small danger" data-act="del-person" data-id="${p.id}">${t('delete')}</button></td></tr>`).join('');
-  const roomOpts = (id: number | null) => `<option value="">${t('settings.none')}</option>` +
-    db.rooms.map(r => `<option value="${r.id}" ${r.id === id ? 'selected' : ''}>${esc(roomLabel(r))}</option>`).join('');
-  const assignRows = db.persons.map(p => `
-    <tr><td>${esc(p.fullName)}</td>
-    <td><select data-act="assign" data-id="${p.id}">${roomOpts(p.roomId)}</select></td></tr>`).join('');
-
-  return `
-  <h2>${t('settings.title')}</h2>
-  <div class="card">
-    <h3>${t('settings.prices')}</h3>
-    <form class="row" data-form="prices">
-      <label>${t('settings.electricPrice')}<input name="electricPrice" type="number" min="0" step="any" value="${s.electricPrice}" required></label>
-      <label>${t('settings.waterPrice')}<input name="waterPrice" type="number" min="0" step="any" value="${s.waterPrice}" required></label>
-      <button>${t('settings.savePrices')}</button>
-    </form>
-    <p class="muted">${t('settings.pricesNote')}</p>
-  </div>
-  <div class="card">
-    <div class="toolbar"><h3>${t('settings.rooms')}</h3><button data-act="add-room">${t('settings.addRoom')}</button></div>
-    ${db.rooms.length ? `<table><thead><tr><th>${t('col.number')}</th><th>${t('col.name')}</th><th class="num">${t('col.price')}</th><th></th></tr></thead><tbody>${roomRows}</tbody></table>` : `<div class="empty">${t('settings.noRooms')}</div>`}
-  </div>
-  <div class="card">
-    <div class="toolbar"><h3>${t('settings.persons')}</h3><button data-act="add-person">${t('settings.addPerson')}</button></div>
-    ${db.persons.length ? `<table><thead><tr><th>${t('col.fullName')}</th><th>${t('col.birthday')}</th><th></th></tr></thead><tbody>${personRows}</tbody></table>` : `<div class="empty">${t('settings.noPersons')}</div>`}
-  </div>
-  <div class="card">
-    <h3>${t('settings.assignment')}</h3>
-    ${db.persons.length && db.rooms.length ? `<table><thead><tr><th>${t('col.person')}</th><th>${t('col.room')}</th></tr></thead><tbody>${assignRows}</tbody></table>` : `<div class="empty">${t('settings.assignFirst')}</div>`}
-  </div>`;
-};
-
-export const roomsView = (db: State) => {
+export const roomsView = (db: State, canEdit: boolean) => {
   const rows = db.rooms.map(r => {
     const occ = occupants(db, r.id);
     return `<tr><td>${esc(r.number)}</td><td>${esc(r.name)}</td><td class="num">${money(r.price)}</td>
-      <td>${occ.length ? occ.map(p => esc(p.fullName)).join(', ') : `<span class="muted">${t('rooms.vacant')}</span>`}</td></tr>`;
+      <td>${occ.length ? occ.map(p => esc(p.fullName)).join(', ') : `<span class="muted">${t('rooms.vacant')}</span>`}</td>
+      ${canEdit ? `<td class="actions-cell">
+        <button class="small secondary" data-act="edit-room" data-id="${r.id}">${t('edit')}</button>
+        <button class="small danger" data-act="del-room" data-id="${r.id}">${t('delete')}</button></td>` : ''}</tr>`;
   }).join('');
-  return `<h2>${t('rooms.title')}</h2><div class="card">${db.rooms.length
-    ? `<table><thead><tr><th>${t('col.number')}</th><th>${t('col.name')}</th><th class="num">${t('col.price')}</th><th>${t('col.occupants')}</th></tr></thead><tbody>${rows}</tbody></table>`
+  return `<div class="toolbar"><h2>${t('rooms.title')}</h2>${canEdit ? `<button data-act="add-room">${t('rooms.add')}</button>` : ''}</div>
+  <div class="card">${db.rooms.length
+    ? `<table><thead><tr><th>${t('col.number')}</th><th>${t('col.name')}</th><th class="num">${t('col.price')}</th><th>${t('col.occupants')}</th>${canEdit ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table>`
     : `<div class="empty">${t('rooms.empty')}</div>`}</div>`;
 };
 
 export const personsView = (db: State) => {
   const rows = db.persons.map(p => {
     const r = db.rooms.find(r => r.id === p.roomId);
-    return `<tr><td>${esc(p.fullName)}</td><td>${esc(p.birthday)}</td>
-      <td>${r ? esc(roomLabel(r)) : `<span class="muted">${t('persons.noRoom')}</span>`}</td></tr>`;
+    return `<tr class="${p.active ? '' : 'inactive'}"><td>${esc(p.fullName)}</td><td>${esc(p.birthday)}</td>
+      <td>${r ? esc(roomLabel(r)) : `<span class="muted">${t('persons.noRoom')}</span>`}</td>
+      <td class="${p.active ? '' : 'muted'}">${t(p.active ? 'status.active' : 'status.inactive')}</td>
+      <td class="actions-cell">
+        <button class="small secondary" data-act="edit-person" data-id="${p.id}">${t('edit')}</button>
+        <button class="small secondary" data-act="toggle-person" data-id="${p.id}">${t(p.active ? 'users.inactivate' : 'users.activate')}</button>
+        <button class="small danger" data-act="del-person" data-id="${p.id}">${t('delete')}</button></td></tr>`;
   }).join('');
-  return `<h2>${t('persons.title')}</h2><div class="card">${db.persons.length
-    ? `<table><thead><tr><th>${t('col.fullName')}</th><th>${t('col.birthday')}</th><th>${t('col.room')}</th></tr></thead><tbody>${rows}</tbody></table>`
+  return `<div class="toolbar"><h2>${t('persons.title')}</h2><button data-act="add-person">${t('persons.add')}</button></div>
+  <div class="card">${db.persons.length
+    ? `<table><thead><tr><th>${t('col.fullName')}</th><th>${t('col.birthday')}</th><th>${t('col.room')}</th><th>${t('col.status')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
     : `<div class="empty">${t('persons.empty')}</div>`}</div>`;
 };
 
-export const billsView = (db: State, month: string) => {
+export const usersView = (users: User[], me: Me) => {
+  const rows = users.map(u => {
+    // Management users can only manage person users (and edit themselves); admins manage everyone.
+    const manageable = me.role === 'admin' || u.role === 'person' || u.id === me.id;
+    // The admin account and your own account can be edited but never deactivated or deleted.
+    const protectedRow = u.role === 'admin' || u.id === me.id;
+    return `<tr><td>${esc(u.username)}</td><td>${t(`role.${u.role}` as Key)}</td>
+      <td>${u.personName ? esc(u.personName) : '<span class="muted">—</span>'}</td>
+      <td class="${u.active ? '' : 'muted'}">${t(u.active ? 'status.active' : 'status.inactive')}</td>
+      <td>${new Date(u.createdAt).toLocaleDateString(formatLocale())}</td>
+      <td class="actions-cell">
+        ${manageable ? `<button class="small secondary" data-act="edit-user" data-id="${u.id}">${t('edit')}</button>` : ''}
+        ${!manageable || protectedRow ? '' : `
+        <button class="small secondary" data-act="toggle-user" data-id="${u.id}">${t(u.active ? 'users.inactivate' : 'users.activate')}</button>
+        <button class="small danger" data-act="del-user" data-id="${u.id}">${t('delete')}</button>`}</td></tr>`;
+  }).join('');
+  return `<div class="toolbar"><h2>${t('users.title')}</h2><button data-act="add-user">${t('users.add')}</button></div>
+  <div class="card">${users.length
+    ? `<table><thead><tr><th>${t('col.username')}</th><th>${t('col.role')}</th><th>${t('col.person')}</th><th>${t('col.status')}</th><th>${t('col.created')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div class="empty">${t('users.empty')}</div>`}</div>`;
+};
+
+/** Breakdown of one room's bill for a month. */
+export const billDetailView = (db: State, room: Room, month: string) => {
+  const b = bill(db, room, month);
+  const occ = occupants(db, room.id).map(p => esc(p.fullName)).join(', ') || `<span class="muted">${t('rooms.vacant')}</span>`;
+  const line = (label: string, calc: string, amount: number) =>
+    `<tr><td>${label}</td><td class="muted">${calc}</td><td class="num">${money(amount)}</td></tr>`;
+  return `<h3 id="billTitle">${t('bills.detail', { room: esc(roomLabel(room)), month })}</h3>
+  <p class="muted">${t('col.occupants')}: ${occ}</p>
+  ${b.recorded ? '' : `<p class="muted">${t('bills.noReadings')}</p>`}
+  <table>
+    <tbody>
+      ${line(t('bills.electricCost'), `${money(db.settings.electricPrice)} × ${b.electric}`, b.e)}
+      ${line(t('bills.waterCost'), `${money(db.settings.waterPrice)} × ${b.water}`, b.w)}
+      ${line(t('bills.roomPrice'), '', room.price)}
+    </tbody>
+    <tfoot><tr><td colspan="2">${t('bills.total')}</td><td class="num">${money(b.total)}</td></tr></tfoot>
+  </table>`;
+};
+
+export const billsView = (db: State, month: string, canEdit: boolean) => {
   let sum = 0;
   const rows = db.rooms.map(room => {
     const b = bill(db, room, month); sum += b.total;
     const occ = occupants(db, room.id).map(p => p.fullName).join(', ');
-    return `<tr data-room="${room.id}">
+    return `<tr data-room="${room.id}" class="pick">
       <td>${esc(roomLabel(room))}<div class="muted">${esc(occ)}</div></td>
-      <td><input type="number" min="0" step="any" data-field="electric" value="${b.recorded ? b.electric : ''}" placeholder="0"></td>
-      <td><input type="number" min="0" step="any" data-field="water" value="${b.recorded ? b.water : ''}" placeholder="0"></td>
+      <td><input type="number" min="0" step="any" data-field="electric" value="${b.recorded ? b.electric : ''}" placeholder="0" ${canEdit ? '' : 'readonly'}></td>
+      <td><input type="number" min="0" step="any" data-field="water" value="${b.recorded ? b.water : ''}" placeholder="0" ${canEdit ? '' : 'readonly'}></td>
       <td class="num" data-cell="e">${money(b.e)}</td>
       <td class="num" data-cell="w">${money(b.w)}</td>
       <td class="num">${money(room.price)}</td>
@@ -120,12 +141,12 @@ export const calendarView = (db: State, year: number) => {
       <div class="line total"><span>${t('calendar.total')}</span><span>${money(total)}</span></div></div>`;
   }).join('');
   return `
-  <h2>${t('calendar.title')}</h2>
-  <div class="toolbar">
+  <div class="sticky-bar">
+    <h2>${t('calendar.title')}</h2>
     <div><button class="secondary" data-act="year" data-d="-1">◀</button>
       <strong class="year">${year}</strong>
       <button class="secondary" data-act="year" data-d="1">▶</button></div>
-    <span class="muted">${t('calendar.hint')}</span>
   </div>
+  <p class="muted">${t('calendar.hint')}</p>
   <div class="cal">${months}</div>`;
 };

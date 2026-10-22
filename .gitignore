@@ -3,3 +3,5 @@ dist
 public/*.js
 srv.log
 .env
+
+secrets/

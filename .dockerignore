@@ -7,3 +7,5 @@ srv.log
 .env
 *.md
 docker-compose.yml
+
+secrets/

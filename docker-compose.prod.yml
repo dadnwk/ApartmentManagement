@@ -1,0 +1,37 @@
+# Production stack: docker compose -f docker-compose.prod.yml up -d --build
+# The db password lives in ./secrets/db_password.txt. The admin password is generated on first start and printed
+# once in the app log: docker compose -f docker-compose.prod.yml logs app | grep "generated password"
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: apartment
+      POSTGRES_DB: apartment
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "apartment", "-d", "apartment"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .            # or: image: ghcr.io/<owner>/<repo>:latest
+    restart: always
+    depends_on:
+      db: { condition: service_healthy }
+    # The entrypoint builds DATABASE_URL from the db secret, so the password is never written in a file here.
+    entrypoint: ["sh", "-c", 'export DATABASE_URL="postgres://apartment:$$(cat /run/secrets/db_password)@db:5432/apartment" && exec node dist/index.js']
+    environment:
+      ADMIN_USER: ${ADMIN_USER:-admin}
+    secrets: [db_password]
+    ports: ["127.0.0.1:3000:3000"]   # reached through the nginx reverse proxy only
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+
+volumes:
+  pgdata:

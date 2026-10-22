@@ -24,6 +24,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://apartment:apartment@localhost:5432/apartment
+      ADMIN_PASSWORD: ci-only-password
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,7 +40,7 @@ jobs:
           curl -fs localhost:3000/login.html >/dev/null
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/api/state)" = 401
           curl -fs -c jar -X POST localhost:3000/api/login -H 'content-type: application/json' \
-            -d '{"username":"admin","password":"4108"}'
+            -d '{"username":"admin","password":"ci-only-password"}'
           curl -fs -b jar -X POST localhost:3000/api/persons -H 'content-type: application/json; charset=utf-8' \
             -d '{"fullName":"Nguyễn Thị Ánh"}'
           curl -fs -b jar localhost:3000/api/state | grep -q 'Nguyễn Thị Ánh'
@@ -75,3 +76,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    concurrency: deploy-production # never run two deployments at once
+    steps:
+      - name: Work out the image published for this commit
+        id: image
+        run: echo "ref=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          images: ${{ steps.image.outputs.ref }}

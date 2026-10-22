@@ -4,7 +4,7 @@ export const money = (n) => (Math.round(n * 100) / 100).toLocaleString(formatLoc
 export const num = (v) => { const n = parseFloat(v); return isFinite(n) && n >= 0 ? n : 0; };
 export const thisMonth = () => new Date().toISOString().slice(0, 7);
 export const roomLabel = (r) => `${r.number} – ${r.name}`;
-export const occupants = (db, roomId) => db.persons.filter(p => p.roomId === roomId);
+export const occupants = (db, roomId) => db.persons.filter(p => p.roomId === roomId && p.active);
 export const findReading = (db, roomId, month) => db.readings.find(r => r.roomId === roomId && r.month === month);
 export function bill(db, room, month) {
     const r = findReading(db, room.id, month);

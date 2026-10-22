@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n-title="app.title">Apartment Management</title>
 <link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <header>
@@ -14,10 +15,17 @@
     <a href="#/calendar" data-i18n="nav.calendar">Calendar</a>
     <a href="#/rooms" data-i18n="nav.rooms">Rooms</a>
     <a href="#/persons" data-i18n="nav.persons">Persons</a>
-    <a href="#/settings" data-i18n="nav.settings">Settings</a>
+    <a href="#/users" id="usersLink" data-i18n="nav.users">Users</a>
   </nav>
   <select id="lang" aria-label="Language"></select>
-  <button id="logout" class="secondary small" data-i18n="logout">Log out</button>
+  <button id="theme" class="secondary small" type="button"></button>
+  <div class="menu-wrap">
+    <button id="settingsBtn" class="secondary small" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-label="nav.settings">&#9881;</button>
+    <div id="settingsMenu" class="menu" role="menu" hidden>
+      <button id="menuPrices" type="button" role="menuitem">&#9889; <span data-i18n="settings.prices">Prices</span></button>
+      <button id="logout" type="button" role="menuitem">&#10162; <span data-i18n="logout">Log out</span></button>
+    </div>
+  </div>
 </header>
 <main id="app"></main>
 
@@ -30,6 +38,10 @@
       <button type="submit" data-i18n="save">Save</button>
     </div>
   </form>
+</dialog>
+<dialog id="billDlg" aria-labelledby="billTitle">
+  <button type="button" id="billClose" class="secondary small close" aria-label="Close">✕</button>
+  <div id="billBody"></div>
 </dialog>
 <script type="module" src="app.js"></script>
 </body>

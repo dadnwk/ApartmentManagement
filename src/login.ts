@@ -1,10 +1,13 @@
 import { applyStatic, bindLanguageSelect, t } from './i18n.js';
+import { applyTheme, bindThemeButton } from './theme.js';
 
 const form = document.getElementById('loginForm') as HTMLFormElement;
 const err = document.getElementById('error') as HTMLElement;
 
 bindLanguageSelect(document.getElementById('lang') as HTMLSelectElement, () => { err.textContent = ''; });
 applyStatic();
+applyTheme();
+bindThemeButton(document.getElementById('theme') as HTMLButtonElement);
 
 form.addEventListener('submit', async e => {
   e.preventDefault();
@@ -16,5 +19,7 @@ form.addEventListener('submit', async e => {
   });
   if (res.ok) { location.href = '/'; return; }
   const serverMsg: string | undefined = (await res.json().catch(() => ({}))).error;
-  err.textContent = res.status === 401 ? t('login.invalid') : serverMsg ?? t('login.failed');
+  err.textContent = res.status === 401 ? t('login.invalid')
+    : res.status === 403 ? t('login.inactive')
+    : serverMsg ?? t('login.failed');
 });

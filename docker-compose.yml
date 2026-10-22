@@ -1,6 +1,7 @@
-services:
+services:  
   db:
-    image: docker-repos.dockerregistry.mgm-tp.com/postgres:16
+    image: postgres:16
+    restart: always
     environment:
       POSTGRES_USER: apartment
       POSTGRES_PASSWORD: apartment
